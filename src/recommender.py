@@ -39,11 +39,11 @@ class Recommender:
         self.songs = songs
 
     def recommend(self, user: UserProfile, k: int = 5) -> List[Song]:
-        # TODO: Implement recommendation logic
+        """Return the top-k Song objects for the given UserProfile (stub — uses functional pipeline)."""
         return self.songs[:k]
 
     def explain_recommendation(self, user: UserProfile, song: Song) -> str:
-        # TODO: Implement explanation logic
+        """Return a plain-English explanation of why this song was recommended to this user (stub)."""
         return "Explanation placeholder"
 
 def load_songs(csv_path: str) -> List[Dict]:
