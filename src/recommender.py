@@ -90,29 +90,31 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
     Algorithm recipe
     ----------------
     Categorical bonuses (exact match):
-      +2.0  genre matches favorite_genre
+      +1.0  genre matches favorite_genre  [EXPERIMENT: halved from +2.0]
       +1.0  mood  matches favorite_mood
 
     Gaussian proximity for numerical features (weight × similarity):
-      energy        weight=3.5, σ=0.25   — strongest vibe signal
+      energy        weight=7.0, σ=0.25   [EXPERIMENT: doubled from 3.5]
       valence       weight=2.5, σ=0.25   — emotional tone
       acousticness  weight=1.5, σ=0.30   — texture preference
       danceability  weight=1.5, σ=0.30   — groove fit
       tempo_bpm     weight=1.0, σ=30.0   — wide tolerance (60–180 BPM range)
 
-    Max possible score: 13.0
+    Max possible score: 16.5  (was 13.0)
+      = genre(1.0) + mood(1.0) + energy(7.0) + valence(2.5)
+        + acousticness(1.5) + danceability(1.5) + tempo(1.0)
     Returns: (score, list_of_reason_strings)
     """
     score = 0.0
     reasons = []
 
     # --- Categorical bonuses ---
-    # +2.0 for an exact genre match — strongest categorical signal
+    # +1.0 for an exact genre match (EXPERIMENT: halved from +2.0)
     if song.get("genre") == user_prefs.get("favorite_genre"):
-        score += 2.0
-        reasons.append(f"genre match '{song['genre']}' (+2.0)")
+        score += 1.0
+        reasons.append(f"genre match '{song['genre']}' (+1.0)")
 
-    # +1.0 for an exact mood match — secondary categorical signal
+    # +1.0 for an exact mood match — unchanged
     if song.get("mood") == user_prefs.get("favorite_mood"):
         score += 1.0
         reasons.append(f"mood match '{song['mood']}' (+1.0)")
@@ -123,13 +125,13 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
     #   contribution = weight × exp( -((song_val - target)² / (2σ²)) )
     #
     # Feature          weight  σ      rationale
-    # energy            3.5   0.25   dominant vibe setter
+    # energy            7.0   0.25   EXPERIMENT: doubled — now dominant above all else
     # valence           2.5   0.25   emotional positivity
     # acousticness      1.5   0.30   texture/tone preference
     # danceability      1.5   0.30   rhythmic groove
     # tempo_bpm         1.0   30.0   wide tolerance for 60–180 BPM range
     numerical = [
-        ("energy",       "target_energy",       3.5, 0.25),
+        ("energy",       "target_energy",       7.0, 0.25),  # doubled
         ("valence",      "target_valence",       2.5, 0.25),
         ("acousticness", "target_acousticness",  1.5, 0.30),
         ("danceability", "target_danceability",  1.5, 0.30),
