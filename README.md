@@ -15,19 +15,110 @@ Replace this paragraph with your own summary of what your version does.
 
 ---
 
+## Data Flow Diagram
+
+```mermaid
+flowchart TD
+    A([🎧 User Taste Profile\nfavorite_genre · favorite_mood\ntarget_energy · target_valence\ntarget_acousticness · target_danceability\ntarget_tempo_bpm]) --> C
+
+    B([📄 data/songs.csv\n18 songs\nid · title · artist · genre · mood\nenergy · valence · acousticness\ndanceability · tempo_bpm]) --> C
+
+    C[load_songs\nparse CSV → list of dicts]
+    C --> D
+
+    D{For each song\nin catalog}
+
+    D --> E[Categorical check\n+2.0 if genre matches\n+1.0 if mood matches]
+    D --> F[Gaussian proximity\nenergy    × 3.5 weight\nvalence   × 2.5 weight\nacousticness × 1.5 weight\ndanceability × 1.5 weight\ntempo_bpm × 1.0 weight]
+
+    E --> G[Sum → raw score\nmax = 13.0]
+    F --> G
+
+    G --> H[Collect reasons\nlist of explanation strings]
+    H --> I[(scored list\nsong · score · reasons)]
+
+    I --> D
+
+    I --> J[Sort descending by score]
+    J --> K[Slice top K results\ndefault k = 5]
+
+    K --> L([🏆 Ranked Recommendations\ntitle · score · explanation\nprinted to terminal])
+```
+
+---
+
 ## How The System Works
 
-Explain your design in plain language.
+**Song Features:**
+Each song in `data/songs.csv` is described by the following features:
 
-Some prompts to answer:
+| Feature | Type | Range | Meaning |
+|---------|------|-------|---------|
+| `genre` | categorical | text | Musical genre (lofi, rock, pop, jazz, etc.) |
+| `mood` | categorical | text | Descriptive mood label (chill, intense, happy, etc.) |
+| `energy` | numerical | 0.0–1.0 | Intensity level (0 = ambient, 1 = intense) |
+| `valence` | numerical | 0.0–1.0 | Emotional positivity (0 = sad/moody, 1 = happy/uplifting) |
+| `acousticness` | numerical | 0.0–1.0 | Organic vs. synthetic texture (0 = electronic, 1 = acoustic) |
+| `danceability` | numerical | 0.0–1.0 | Rhythmic drive (0 = minimal, 1 = highly rhythmic) |
+| `tempo_bpm` | numerical | 60–180 | Beats per minute |
 
-- What features does each `Song` use in your system
-  - For example: genre, mood, energy, tempo
-- What information does your `UserProfile` store
-- How does your `Recommender` compute a score for each song
-- How do you choose which songs to recommend
+**User Taste Profile:**
+A user is represented as a dictionary with a target value for each feature:
 
-You can include a simple diagram or bullet list if helpful.
+```python
+user_prefs = {
+    "favorite_genre":      "lofi",   # categorical — genre bonus
+    "favorite_mood":       "chill",  # categorical — mood bonus
+    "target_energy":        0.40,    # calm background listening
+    "target_valence":       0.55,    # slightly positive, not upbeat
+    "target_acousticness":  0.70,    # warm, organic textures
+    "target_danceability":  0.60,    # gentle groove
+    "target_tempo_bpm":    80.0,     # slow-to-mid BPM
+}
+```
+
+---
+
+**Algorithm Recipe:**
+
+For each song the system computes a score out of a maximum of **13.0 points**:
+
+*Step 1 — Categorical bonuses (fixed points):*
+- `+2.0` if the song's genre exactly matches `favorite_genre`
+- `+1.0` if the song's mood exactly matches `favorite_mood`
+
+*Step 2 — Gaussian proximity for each numerical feature:*
+
+For each feature, similarity is calculated as:
+
+```
+similarity = exp( -( (song_value − target_value)² / (2 × σ²) ) )
+```
+
+This gives **1.0** for a perfect match and smoothly approaches **0** as the song drifts away. Each similarity is then multiplied by a weight:
+
+| Feature | Weight | σ (spread) | Why this weight |
+|---------|--------|-----------|-----------------|
+| energy | **3.5** | 0.25 | Sets the overall vibe — wrong energy ruins the session |
+| valence | **2.5** | 0.25 | Emotional tone is the second most personal dimension |
+| acousticness | **1.5** | 0.30 | Texture preference; listeners are more forgiving here |
+| danceability | **1.5** | 0.30 | Groove matters but has similar tolerance to acousticness |
+| tempo_bpm | **1.0** | 30.0 | Broad tolerance needed — BPM spans 60–180 |
+
+*Step 3 — Rank and select:*
+
+All songs are sorted by score (descending). The top K are returned with a plain-language explanation of the reasons (e.g., "genre match, energy very close").
+
+---
+
+**Known Biases and Limitations:**
+
+- **Genre lock-in:** The `+2.0` genre bonus is large enough that a mediocre genre match can outscore a nearly-perfect numerical match from another genre. A great ambient track might be passed over if the user prefers lofi, even though the two genres feel identical at slow tempos.
+- **Mood label is coarse:** "Chill" is applied to lofi, jazz, and ambient songs alike. The mood bonus can fire on songs that feel very different in practice — valence and energy do a better job, but the label still carries weight.
+- **Energy dominates:** At weight 3.5, energy alone accounts for 27% of the maximum score. A user who says they like calm music will almost never see a high-energy track recommended, even if its genre, mood, and danceability are perfect matches.
+- **Cold catalog problem:** With only 18 songs, any genre not in the catalog (e.g., Latin, K-pop) simply cannot be recommended. The system cannot surface what it has never seen.
+- **No listening history:** The profile is hand-coded, not learned. It reflects what a user *says* they want, not what they actually play repeatedly — these often differ.
+
 
 ---
 
