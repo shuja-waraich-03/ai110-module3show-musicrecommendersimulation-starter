@@ -119,6 +119,8 @@ All songs are sorted by score (descending). The top K are returned with a plain-
 - **Cold catalog problem:** With only 18 songs, any genre not in the catalog (e.g., Latin, K-pop) simply cannot be recommended. The system cannot surface what it has never seen.
 - **No listening history:** The profile is hand-coded, not learned. It reflects what a user *says* they want, not what they actually play repeatedly — these often differ.
 
+<img width="451" height="833" alt="image" src="https://github.com/user-attachments/assets/ff327802-b1c6-4d73-8673-1d2500687e5f" />
+
 
 ---
 
